@@ -85,6 +85,19 @@ function hive_transfer(urlParams) {
 };
 
 window.addEventListener('load', function () {
+	if (window.hive_keychain || window.steem_keychain) {
+		keychains_ready();
+	} else {
+		var keychain_check = setInterval(function(){
+			if (window.hive_keychain || window.steem_keychain) {
+				clearInterval(keychain_check);
+				keychains_ready();
+			}
+		}, 250);
+	}
+});
+
+function keychains_ready() {
 	const urlParams = new URLSearchParams(window.location.search);
 	const chain = urlParams.get('chain');
 	if (chain === 'steem') {
@@ -96,7 +109,7 @@ window.addEventListener('load', function () {
 			transfer(urlParams);
 		} else if (type === 'sendTokens') {
 			sendTokens(urlParams);
-		};
+		}
 	} else if (chain === 'hive') {
 		const type = urlParams.get('type');
 		console.log(type);
@@ -106,6 +119,6 @@ window.addEventListener('load', function () {
 			hive_transfer(urlParams);
 		} else if (type === 'sendTokens') {
 			hive_sendTokens(urlParams);
-		};
+		}
 	}
-});
+}
