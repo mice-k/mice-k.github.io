@@ -133,11 +133,43 @@ function getSellOps(groups, account, price, symbol) {
 	return ops
 }
 
+function getTransferOps(groups, sender, receiver) {
+	let ops = []
+	let jj = []
+	let len = 2
+	for (var i = 0; i < groups.length; i++) {
+		let j = {
+			'contractName': 'nft',
+			'contractAction': 'transfer',
+			'contractPayload': {
+				'to':receiver,
+				'nfts':[{'symbol':'CITY','ids':groups[i]}]
+			}
+		}
+		let l = JSON.stringify(j).length + 1
+		if (len + l < 8192) {
+			jj.push(j)
+			len += l
+		} else {
+			ops.push(['custom_json', makeEngineOp(jj, sender)])
+			if (ops.length > 4) {
+				return ops
+			}
+			len = 2 + l
+			jj = []
+		}
+	}
+	if ((jj.length > 0) & (ops.length < 5)) {
+		ops.push(['custom_json', makeEngineOp(jj, sender)])
+	}
+	return ops
+}
+
 function displayOps(ops) {
 	let p = document.createElement('pre')
 	p.style.wordWrap = 'break-word'
 	p.style.whiteSpace = 'pre-wrap'
-	p.innerHTML = JSON.stringify(ops, null, '  ')
+	p.innerHTML = JSON.stringify(ops, null, '  ').replace(/\\/g, '')
 	document.body.appendChild(p)
 }
 
@@ -169,11 +201,30 @@ function sell(urlParams) {
 	const promise = heFind('nft', 'CITYinstances', query)
 	promise.then(function(result) {
 		const cards = result['result'].reverse().slice(0, count)
-		console.log(cards)
 		const groups = groupCards(cards)
 		const ops = getSellOps(groups, account, price, symbol)
 		displayOps(ops)
 		hive_broadcast(account, ops, 'Active')
+	})
+}
+
+function transfer(urlParams) {
+	const sender = urlParams.get('sender')
+	const receiver = urlParams.get('receiver')
+	const count = parseInt(urlParams.get('count'))
+	const card = urlParams.get('card')
+	if (card) {
+		query = {'account':sender, 'properties.name':card}
+	} else {
+		query = {'account':sender}
+	}
+	const promise = heFind('nft', 'CITYinstances', query)
+	promise.then(function(result) {
+		const cards = result['result'].reverse().slice(0, count)
+		const groups = groupCards(cards)
+		const ops = getTransferOps(groups, sender, receiver)
+		displayOps(ops)
+		hive_broadcast(sender, ops, 'Active')
 	})
 }
 
@@ -194,7 +245,7 @@ function keychains_ready() {
 	const urlParams = new URLSearchParams(window.location.search);
 	const command = urlParams.get('command');
 	if (command === 'transfer') {
-		
+		transfer(urlParams)
 	} else if (command === 'sell') {
 		sell(urlParams)
 	} else if (command === 'cancel') {
