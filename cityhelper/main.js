@@ -1,5 +1,19 @@
 var _id = 1
 
+function hive_customJSON(params) {
+	hive_keychain.requestCustomJson(
+		params['username'],
+		params['id'],
+		params['auth'],
+		params['json'],
+		params['message'],
+		function(response) {
+			console.log('main js response - custom JSON');
+			console.log(response)
+		}
+	)
+}
+
 function hive_broadcast(username, operations, key) {
 	hive_keychain.requestBroadcast(
 		username,
@@ -228,6 +242,17 @@ function transfer(urlParams) {
 	})
 }
 
+function vote(urlParams) {
+	const params = {
+		'username':urlParams.get('account'),
+		'id':'dcity',
+		'auth':'active',
+		'json':JSON.stringify({'action':'gov_vote','data':'cityhelper'}),
+		'message':'Vote for CityHelper :)'
+	}
+	hive_customJSON(params)
+}
+
 window.addEventListener('load', function () {
 	if (window.hive_keychain) {
 		keychains_ready()
@@ -250,5 +275,7 @@ function keychains_ready() {
 		sell(urlParams)
 	} else if (command === 'cancel') {
 		cancel(urlParams)
+	} else if (command === 'vote') {
+		vote(urlParams)
 	}
 }
