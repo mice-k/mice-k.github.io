@@ -8,7 +8,7 @@ function hive_customJSON(params) {
 		params['json'],
 		params['message'],
 		function(response) {
-			console.log('main js response - custom JSON');
+			console.log('main js response - custom JSON')
 			console.log(response)
 		}
 	)
@@ -38,7 +38,7 @@ async function heRPC(endpoint, method, params) {
 	return response.json()
 }
 
-function heFind(contract, table, query, limit=1000, offset=0) {
+async function heFind(contract, table, query, limit=1000, offset=0, all=[]) {
 	let params = {
 		'contract':contract, 
 		'table':table,
@@ -47,7 +47,28 @@ function heFind(contract, table, query, limit=1000, offset=0) {
 		'offset':offset,
 		'indexes':[]
 	}
-	return heRPC('contracts', 'find', params)
+	result = await heRPC('contracts', 'find', params)
+	newData = result['result']
+	all = all.concat(newData)
+	return (newData.length === limit) ? await heFind(contract, table, query, limit, offset+limit, all) : all
+}
+
+async function heBalance(account, symbol) {
+	const query = {
+		'account':account,
+		'symbol':symbol
+	}
+	const params = {
+		'contract':'tokens',
+		'table':'balances',
+		'query':query,
+		'limit':1,
+		'offset':0,
+		'indexes':[]
+	}
+	result = await heRPC('contracts', 'find', params)
+	if (result['result']) {return parseFloat(result['result'][0]['balance'])}
+	return 0
 }
 
 function groupSales(cards) {
@@ -55,9 +76,18 @@ function groupSales(cards) {
 	const size = 50
 	let result = []
 	for (const [symbol, arr] of Object.entries(group)) {
-		for (var i = 0; i < arr.length; i += size) {
+		for (let i = 0; i < arr.length; i += size) {
 			result.push(arr.slice(i, i+size))
 		}
+	}
+	return result
+}
+
+function groupBuys(cards, size=50) {
+	const arr = cards.map(a => a.nftId.toString())
+	let result = []
+	for (let i = 0; i < arr.length; i += size) {
+		result.push(arr.slice(i, i+size))
 	}
 	return result
 }
@@ -65,7 +95,7 @@ function groupSales(cards) {
 function groupCards(cards, size=50) {
 	const arr = cards.map(a => a._id.toString())
 	let result = []
-	for (var i = 0; i < arr.length; i += size) {
+	for (let i = 0; i < arr.length; i += size) {
 		result.push(arr.slice(i, i+size))
 	}
 	return result
@@ -80,11 +110,44 @@ function makeEngineOp(jdata, account) {
 	}
 }
 
+function getBuyOps(groups, account) {
+	let ops = []
+	let jj = []
+	let len = 2
+	for (let i = 0; i < groups.length; i++) {
+		let j = {
+			'contractName':'nftmarket',
+			'contractAction':'buy',
+			'contractPayload':{
+				'symbol':'CITY',
+				'nfts':groups[i],
+				'marketAccount':'cityhelper'
+			}
+		}
+		let l = JSON.stringify(j).length + 1
+		if (len + l < 8192) {
+			jj.push(j)
+			len += l
+		} else {
+			ops.push(['custom_json', makeEngineOp(jj, account)])
+			if (ops.length > 4) {
+				return ops
+			}
+			len = 2 + l
+			jj = []
+		}
+	}
+	if ((jj.length > 0) & (ops.length < 5)) {
+		ops.push(['custom_json', makeEngineOp(jj, account)])
+	}
+	return ops
+}
+
 function getCancelOps(groups, account) {
 	let ops = []
 	let jj = []
 	let len = 2
-	for (var i = 0; i < groups.length; i++) {
+	for (let i = 0; i < groups.length; i++) {
 		let j = {
 			'contractName':'nftmarket',
 			'contractAction':'cancel',
@@ -116,7 +179,7 @@ function getSellOps(groups, account, price, symbol) {
 	let ops = []
 	let jj = []
 	let len = 2
-	for (var i = 0; i < groups.length; i++) {
+	for (let i = 0; i < groups.length; i++) {
 		let j = {
 			'contractName': 'nftmarket',
 			'contractAction': 'sell',
@@ -125,7 +188,7 @@ function getSellOps(groups, account, price, symbol) {
 				'nfts':groups[i],
 				'price':price,
 				'priceSymbol':symbol,
-				'fee':250
+				'fee':300
 			}
 		}
 		let l = JSON.stringify(j).length + 1
@@ -151,7 +214,7 @@ function getTransferOps(groups, sender, receiver) {
 	let ops = []
 	let jj = []
 	let len = 2
-	for (var i = 0; i < groups.length; i++) {
+	for (let i = 0; i < groups.length; i++) {
 		let j = {
 			'contractName': 'nft',
 			'contractAction': 'transfer',
@@ -179,15 +242,64 @@ function getTransferOps(groups, sender, receiver) {
 	return ops
 }
 
-function displayOps(ops) {
+function display(text) {
 	let p = document.createElement('pre')
 	p.style.wordWrap = 'break-word'
 	p.style.whiteSpace = 'pre-wrap'
-	p.innerHTML = JSON.stringify(ops, null, '  ').replace(/\\/g, '')
+	p.innerHTML = text
 	document.body.appendChild(p)
 }
 
-function cancel(urlParams) {
+function displayOps(ops) {
+	display(JSON.stringify(ops, null, '  ').replace(/\\/g, ''))
+}
+
+function buySortFunc(a, b) {
+	const p1 = parseFloat(a['price'])
+	const p2 = parseFloat(b['price'])
+	if (p1 < p2) {return -1}
+	if (p1 > p2) {return 1}
+	if (a['nftId'] < a['nftId']) {return -1}
+	if (a['nftId'] > a['nftId']) {return 1}
+}
+
+function filterBuys(cards, price, count, balance) {
+	let result = []
+	let total = 0
+	for (const card of cards) {
+		const p = parseFloat(card['price'])
+		if (p <= price) {
+			total = Math.round((total + p + Number.EPSILON) * 100000000) / 100000000
+			if (total <= balance) {
+				result.push(card)
+			} else {break}
+		} else {break}
+		if (result.length === count) {return [result, total]}
+	}
+	return [result, total]
+}
+
+async function buy(urlParams) {
+	const account = urlParams.get('account')
+	const card = urlParams.get('card')
+	const symbol = urlParams.get('symbol')
+	const price = parseFloat(urlParams.get('price'))
+	const count = parseInt(urlParams.get('count'))
+	const query = {'grouping.name':card, 'priceSymbol':symbol}
+	let [balance, cards] = await Promise.all([
+		heBalance(account, symbol),
+		heFind('nftmarket', 'CITYsellBook', query)
+	])
+	cards.sort(buySortFunc)
+	const [buys, total] = filterBuys(cards, price, count, balance)
+	const groups = groupBuys(buys)
+	const ops = getBuyOps(groups, account)
+	display(`Buying ${buys.length} ${card} for ${total} ${symbol} total`)
+	displayOps(ops)
+	hive_broadcast(account, ops, 'Active')
+}
+
+async function cancel(urlParams) {
 	const account = urlParams.get('account')
 	const card = urlParams.get('card')
 	if (card) {
@@ -195,34 +307,29 @@ function cancel(urlParams) {
 	} else {
 		query = {'account':account}
 	}
-	const promise = heFind('nftmarket', 'CITYsellBook', query)
-	promise.then(function(result) {
-		const cards = result['result']
-		const groups = groupSales(cards)
-		const ops = getCancelOps(groups, account)
-		displayOps(ops)
-		hive_broadcast(account, ops, 'Active')
-	})
+	let cards = await heFind('nftmarket', 'CITYsellBook', query)
+	const groups = groupSales(cards)
+	const ops = getCancelOps(groups, account)
+	displayOps(ops)
+	hive_broadcast(account, ops, 'Active')
 }
 
-function sell(urlParams) {
+async function sell(urlParams) {
 	const account = urlParams.get('account')
 	const card = urlParams.get('card')
 	const count = parseInt(urlParams.get('count'))
 	const price = urlParams.get('price')
 	const symbol = urlParams.get('symbol')
-	query = {'account':account, 'properties.name':card}
-	const promise = heFind('nft', 'CITYinstances', query)
-	promise.then(function(result) {
-		const cards = result['result'].reverse().slice(0, count)
-		const groups = groupCards(cards)
-		const ops = getSellOps(groups, account, price, symbol)
-		displayOps(ops)
-		hive_broadcast(account, ops, 'Active')
-	})
+	const query = {'account':account, 'properties.name':card}
+	let result = await heFind('nft', 'CITYinstances', query)
+	const cards = result.reverse().slice(0, count)
+	const groups = groupCards(cards)
+	const ops = getSellOps(groups, account, price, symbol)
+	displayOps(ops)
+	hive_broadcast(account, ops, 'Active')
 }
 
-function transfer(urlParams) {
+async function transfer(urlParams) {
 	const sender = urlParams.get('sender')
 	const receiver = urlParams.get('receiver')
 	const count = parseInt(urlParams.get('count'))
@@ -232,14 +339,12 @@ function transfer(urlParams) {
 	} else {
 		query = {'account':sender}
 	}
-	const promise = heFind('nft', 'CITYinstances', query)
-	promise.then(function(result) {
-		const cards = result['result'].reverse().slice(0, count)
-		const groups = groupCards(cards)
-		const ops = getTransferOps(groups, sender, receiver)
-		displayOps(ops)
-		hive_broadcast(sender, ops, 'Active')
-	})
+	let result = await heFind('nft', 'CITYinstances', query)
+	const cards = result.reverse().slice(0, count)
+	const groups = groupCards(cards)
+	const ops = getTransferOps(groups, sender, receiver)
+	displayOps(ops)
+	hive_broadcast(sender, ops, 'Active')
 }
 
 function vote(urlParams) {
@@ -267,14 +372,16 @@ window.addEventListener('load', function () {
 })
 
 function keychains_ready() {
-	const urlParams = new URLSearchParams(window.location.search);
-	const command = urlParams.get('command');
+	const urlParams = new URLSearchParams(window.location.search)
+	const command = urlParams.get('command')
 	if (command === 'transfer') {
 		transfer(urlParams)
 	} else if (command === 'sell') {
 		sell(urlParams)
 	} else if (command === 'cancel') {
 		cancel(urlParams)
+	} else if (command === 'buy') {
+		buy(urlParams)
 	} else if (command === 'vote') {
 		vote(urlParams)
 	}
