@@ -357,6 +357,7 @@ async function cancel(urlParams) {
 	let cards = await heFind('nftmarket', 'CITYsellBook', query)
 	const groups = groupSales(cards)
 	const ops = getCancelOps(groups, account)
+	display(`Cancelling ${cards.length} sales`)
 	displayOps(ops)
 	hive_broadcast(account, ops, 'Active')
 }
@@ -372,6 +373,7 @@ async function sell(urlParams) {
 	const cards = result.reverse().slice(0, count)
 	const groups = groupCards(cards)
 	const ops = getSellOps(groups, account, price, symbol)
+	display(`Selling ${cards.length} ${card} for ${price} ${symbol} each`)
 	displayOps(ops)
 	hive_broadcast(account, ops, 'Active')
 }
@@ -390,6 +392,11 @@ async function transfer(urlParams) {
 	const cards = result.reverse().slice(0, count)
 	const groups = groupCards(cards)
 	const ops = getTransferOps(groups, sender, receiver)
+	if (card) {
+		display(`Sending ${cards.length} ${card} to ${receiver}`)
+	} else {
+		display(`Sending ${cards.length} cards to ${receiver}`)
+	}
 	displayOps(ops)
 	hive_broadcast(sender, ops, 'Active')
 }
