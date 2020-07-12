@@ -143,6 +143,39 @@ function getBuyOps(groups, account) {
 	return ops
 }
 
+function getChangeOps(groups, account, price) {
+	let ops = []
+	let jj = []
+	let len = 2
+	for (let i = 0; i < groups.length; i++) {
+		let j = {
+			'contractName':'nftmarket',
+			'contractAction':'changePrice',
+			'contractPayload': {
+				'symbol':'CITY',
+				'nfts':groups[i],
+				'price':price
+			}
+		}
+		let l = JSON.stringify(j).length + 1
+		if (len + l < 8192) {
+			jj.push(j)
+			len += l
+		} else {
+			ops.push(['custom_json', makeEngineOp(jj, account)])
+			if (ops.length > 4) {
+				return ops
+			}
+			len = 2 + l
+			jj = []
+		}
+	}
+	if ((jj.length > 0) & (ops.length < 5)) {
+		ops.push(['custom_json', makeEngineOp(jj, account)])
+	}
+	return ops
+}
+
 function getCancelOps(groups, account) {
 	let ops = []
 	let jj = []
@@ -299,6 +332,20 @@ async function buy(urlParams) {
 	hive_broadcast(account, ops, 'Active')
 }
 
+async function change(urlParams) {
+	const account = urlParams.get('account')
+	const card = urlParams.get('card')
+	const price = urlParams.get('price')
+	const symbol = urlParams.get('symbol')
+	const query = {'account':account, 'priceSymbol':symbol, 'grouping.name':card}
+	let cards = await heFind('nftmarket', 'CITYsellBook', query)
+	const groups = groupSales(cards)
+	const ops = getChangeOps(groups, account, price)
+	display(`Changing price of ${cards.length} ${card} to ${price} ${symbol}`)
+	displayOps(ops)
+	hive_broadcast(account, ops, 'Active')
+}
+
 async function cancel(urlParams) {
 	const account = urlParams.get('account')
 	const card = urlParams.get('card')
@@ -378,6 +425,8 @@ function keychains_ready() {
 		transfer(urlParams)
 	} else if (command === 'sell') {
 		sell(urlParams)
+	} else if (command === 'change') {
+		change(urlParams)
 	} else if (command === 'cancel') {
 		cancel(urlParams)
 	} else if (command === 'buy') {
