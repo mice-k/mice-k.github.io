@@ -302,9 +302,10 @@ function filterBuys(cards, price, count, balance) {
 	for (const card of cards) {
 		const p = parseFloat(card['price'])
 		if (p <= price) {
-			total = Math.round((total + p + Number.EPSILON) * 100000000) / 100000000
-			if (total <= balance) {
+			let temp = Math.round((total + p + Number.EPSILON) * 100000000) / 100000000
+			if (temp <= balance) {
 				result.push(card)
+				total = temp
 			} else {break}
 		} else {break}
 		if (result.length === count) {return [result, total]}
