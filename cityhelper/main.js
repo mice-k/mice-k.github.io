@@ -221,7 +221,7 @@ function getSellOps(groups, account, price, symbol) {
 				'nfts':groups[i],
 				'price':price,
 				'priceSymbol':symbol,
-				'fee':300
+				'fee':500
 			}
 		}
 		let l = JSON.stringify(j).length + 1
