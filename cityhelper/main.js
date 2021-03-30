@@ -351,9 +351,9 @@ async function cancel(urlParams) {
 	const account = urlParams.get('account')
 	const card = urlParams.get('card')
 	if (card) {
-		query = {'account':account, 'grouping.name':card}
+		const query = {'account':account, 'grouping.name':card}
 	} else {
-		query = {'account':account}
+		const query = {'account':account}
 	}
 	let cards = await heFind('nftmarket', 'CITYsellBook', query)
 	const groups = groupSales(cards)
