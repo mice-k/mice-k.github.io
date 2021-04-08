@@ -35,6 +35,11 @@ const tokens = {
 		'lpAddress':'0x243E060DEcA0499fCaE6ABe548C0115faaBa0ed4',
 		'mult':10**-15
 	},
+	'ICE': {
+		'pair':'BNB',
+		'lpAddress':'0xFE3171B9c20d002376D4B0097207EDf54b02EA3B',
+		'mult':-1
+	},
 	'EGG': {
 		'pair':'BUSD',
 		'lpAddress':'0x19e7cbECDD23A16DfA5573dF54d98F7CaAE03019',
