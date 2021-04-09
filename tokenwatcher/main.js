@@ -40,6 +40,11 @@ const tokens = {
 		'lpAddress':'0xFE3171B9c20d002376D4B0097207EDf54b02EA3B',
 		'mult':-1
 	},
+	'DBALL': {
+		'pair':'BUSD',
+		'lpAddress':'0x55d06D963CDc4405E204FB1585b45b5E8e353719',
+		'mult':1
+	},
 	'EGG': {
 		'pair':'BUSD',
 		'lpAddress':'0x19e7cbECDD23A16DfA5573dF54d98F7CaAE03019',
