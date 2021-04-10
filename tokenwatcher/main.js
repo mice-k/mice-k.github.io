@@ -89,8 +89,33 @@ const tokens = {
 		'pair':'BNB',
 		'lpAddress':'0xe022baa3E5E87658f789c9132B10d7425Fd3a389',
 		'mult':10**-12
+	},
+	'XVS': {
+		'pair':'BNB',
+		'lpAddress':'0x41182c32F854dd97bA0e0B1816022e0aCB2fc0bb',
+		'mult':-1
+	},
+	'BAKE': {
+		'pair':'BNB',
+		'lpAddress':'0x3Da30727ed0626b78C212e81B37B97A8eF8A25bB',
+		'mult':-1
+	},
+	'MDO': {
+		'pair':'BUSD',
+		'lpAddress':'0xD65F81878517039E39c359434d8D8bD46CC4531F',
+		'mult':1
+	},
+	'SFUND': {
+		'pair':'BNB',
+		'lpAddress':'0x33338C4FDb9a4a18C5c280c30338Acda1B244425',
+		'mult':1
 	}
 }
+
+// pancakeswap router: 0x05fF2B0DB69458A0750badebc4f9e13aDd608C7F
+// pancakeswap factory: 0xBCfCcbde45cE874adCB698cC183deBcF17952812
+// BUSD: 0xe9e7cea3dedca5984780bafc599bd69add087d56
+// WBNB: 0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c
 
 async function loadAbi(url) {
 	const response = await fetch(url)
